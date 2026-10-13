@@ -29,8 +29,10 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <chrono>
 #include <iostream>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
@@ -164,6 +166,26 @@ public:
       node_->create_client<robot_localization::srv::SetPose>("set_pose");
   }
 
+  // Each test creates a new node, and the filter drops whatever this node sends
+  // before discovering it.
+  bool waitForConnections()
+  {
+    const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (odom_pub_->get_subscription_count() == 0 ||
+      pose_pub_->get_subscription_count() == 0 ||
+      twist_pub_->get_subscription_count() == 0 ||
+      imu_pub_->get_subscription_count() == 0 ||
+      diagnostic_sub_->get_publisher_count() == 0)
+    {
+      if (std::chrono::steady_clock::now() > deadline) {
+        return false;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    return set_pose_->wait_for_service(std::chrono::seconds(10));
+  }
+
   void publishMessages(rclcpp::Time t)
   {
     odom_msg_->header.stamp = t;
@@ -186,7 +208,11 @@ public:
     setPoseRequest->pose.header.frame_id = "base_link";
     setPoseRequest->pose.pose = getValidPose()->pose;
     setPoseRequest->pose.header.stamp = t;
-    set_pose_->async_send_request(setPoseRequest);
+    // The filter applies the pose reset before it responds.
+    auto result = set_pose_->async_send_request(setPoseRequest);
+    ASSERT_EQ(
+      rclcpp::spin_until_future_complete(node_, result, std::chrono::seconds(5)),
+      rclcpp::FutureReturnCode::SUCCESS);
   }
 };
 
@@ -198,6 +224,7 @@ public:
 */
 TEST(FilterBaseDiagnosticsTest, EmptyTimestamps) {
   robot_localization::DiagnosticsHelper dh_;
+  ASSERT_TRUE(dh_.waitForConnections());
 
   // keep track of which diagnostic messages are detected.
   bool received_warning_imu = false;
@@ -270,6 +297,7 @@ TEST(FilterBaseDiagnosticsTest, EmptyTimestamps) {
 
 TEST(FilterBaseDiagnosticsTest, TimestampsBeforeSetPose) {
   robot_localization::DiagnosticsHelper dh_;
+  ASSERT_TRUE(dh_.waitForConnections());
 
   // keep track of which diagnostic messages are detected.
   bool received_warning_imu = false;
@@ -341,6 +369,7 @@ TEST(FilterBaseDiagnosticsTest, TimestampsBeforeSetPose) {
 
 TEST(FilterBaseDiagnosticsTest, TimestampsBeforePrevious) {
   robot_localization::DiagnosticsHelper dh_;
+  ASSERT_TRUE(dh_.waitForConnections());
   // keep track of which diagnostic messages are detected.
   // we have more things to check here because the messages get split over
   // various callbacks if they pass the check if they predate the set_pose time.
