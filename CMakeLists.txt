@@ -170,6 +170,7 @@ ament_target_dependencies(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_ros REQUIRED)
   find_package(ament_cmake_cppcheck REQUIRED)
   find_package(ament_cmake_cpplint REQUIRED)
   find_package(ament_cmake_lint_cmake REQUIRED)
@@ -192,6 +193,7 @@ if(BUILD_TESTING)
   ament_add_test(test_filter_base_diagnostics_timestamps
     GENERATE_RESULT_FOR_RETURN_CODE_ZERO
     TIMEOUT 300
+    RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py"
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test/test_filter_base_diagnostics_timestamps.launch.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
@@ -224,6 +226,7 @@ if(BUILD_TESTING)
     test_ekf_node_interfaces
     GENERATE_RESULT_FOR_RETURN_CODE_ZERO
     TIMEOUT 300
+    RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py"
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test/test_se_node_interfaces.launch.py"
     ENV NODE_TYPE=ekf
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -256,6 +259,7 @@ if(BUILD_TESTING)
     test_ukf_node_interfaces
     GENERATE_RESULT_FOR_RETURN_CODE_ZERO
     TIMEOUT 300
+    RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py"
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test/test_se_node_interfaces.launch.py"
     ENV NODE_TYPE=ukf
   WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
